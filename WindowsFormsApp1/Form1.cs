@@ -13,17 +13,17 @@ namespace WindowsFormsApp1
     public partial class Form1 : Form
     {
         Bitmap bmp;
-        Point point1;//точка при зажатой клавише мыши
-        Point point2;//точка при отжатии клавиши мыши
         List<Point> Coordinates;
         bool flag;//флаг существования рисунка
         Graphics g;
+        Color borderColor;
         public Form1()
         {
             InitializeComponent();
             bmp = new Bitmap(pictureBox1.Width, pictureBox1.Height);
             flag = false;
             Coordinates = new List<Point>();
+            borderColor = Color.FromArgb(255,0,0,255);
         }
 
         private void PutPixel(Color color, int x, int y) //рисовать пиксель
@@ -84,13 +84,57 @@ namespace WindowsFormsApp1
             }
         }
 
+        int LineFill(int x, int y, int dir, int preXL, int preXR)
+        {
+            int xl = x, xr = x;
+            Color color = bmp.GetPixel(xl,y);
+            do
+            {
+                try
+                {
+                    color = bmp.GetPixel(--xl, y);
+                }
+                catch
+                {
+                    ArgumentOutOfRangeException e = new ArgumentOutOfRangeException();
+                    MessageBox.Show(e.Message);
+                    Environment.Exit(Environment.ExitCode);
+                }
+            } while (color != borderColor);
+
+            do
+            {
+                color = bmp.GetPixel(++xr, y);
+            } while (color != borderColor);
+
+            xl++; xr--;
+            Bresenham4Line(color, xl, y, xr, y);
+            for(x = xl;x<=xr;x++)
+            {
+                color = bmp.GetPixel(x, y + dir);
+                if (color != borderColor) { x = LineFill(x, y + dir, dir, xl, xr); }
+            }
+            for (x = xl; x < preXL; x++)
+            {
+                color = bmp.GetPixel(x, y - dir);
+                if(color!=borderColor) {x = LineFill(x,y-dir,-dir,xl,xr); }
+            }
+            for(x = preXR;x<xr;x++)
+            {
+                color = bmp.GetPixel(x, y - dir);
+                if (color != borderColor) {x = LineFill(x,y-dir,-dir,xl,xr); }
+            }
+            return xr;
+        }
+
         private void pictureBox1_Click(object sender, MouseEventArgs e)
         {
             if (!flag)
             {
+                var p = new Point(e.X, e.Y);
                 if (e.Button == MouseButtons.Left)
                 {
-                    var p = new Point(e.X, e.Y);
+                    
                     Coordinates.Add(p);//добавляем в листок с точками
                     if (Coordinates.Count == 1)//если 1 точка
                     {
@@ -111,6 +155,8 @@ namespace WindowsFormsApp1
                     }
                     Bresenham4Line(Color.Blue, Coordinates[Coordinates.Count - 1].X, Coordinates[Coordinates.Count - 1].Y, //соединяет 2 последние точки
                                        Coordinates[0].X, Coordinates[0].Y);
+                    pictureBox1.Image = bmp; //отображаем
+                    LineFill(p.X, p.Y, 1, p.X, p.Y);
                     flag = true;
                 }
                 pictureBox1.Image = bmp; //отображаем
